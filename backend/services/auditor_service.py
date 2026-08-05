@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from backend.services.ollama_service import ask_ollama
+from backend.utils.prompt_loader import load_prompt
 
 
 USER_AGENT = (
@@ -24,7 +25,9 @@ def normalize_url(website: str) -> str:
     website = website.strip()
 
     if not website:
-        raise AuditorError("L'entreprise ne possède pas de site internet.")
+        raise AuditorError(
+            "L'entreprise ne possède pas de site internet."
+        )
 
     if not website.startswith(("http://", "https://")):
         website = f"https://{website}"
@@ -32,25 +35,37 @@ def normalize_url(website: str) -> str:
     parsed = urlparse(website)
 
     if parsed.scheme not in {"http", "https"}:
-        raise AuditorError("Le protocole du site n'est pas autorisé.")
+        raise AuditorError(
+            "Le protocole du site n'est pas autorisé."
+        )
 
     if not parsed.hostname:
-        raise AuditorError("L'adresse du site est invalide.")
+        raise AuditorError(
+            "L'adresse du site est invalide."
+        )
 
     return website
 
 
 def ensure_public_website(website: str) -> None:
     """
-    Empêche l'auditeur d'accéder à localhost ou au réseau privé.
+    Empêche l'auditeur d'accéder à localhost
+    ou à une adresse de réseau privé.
     """
     hostname = urlparse(website).hostname
 
     if hostname is None:
-        raise AuditorError("Nom de domaine invalide.")
+        raise AuditorError(
+            "Nom de domaine invalide."
+        )
 
-    if hostname.lower() in {"localhost", "localhost.localdomain"}:
-        raise AuditorError("Les adresses locales ne sont pas autorisées.")
+    if hostname.lower() in {
+        "localhost",
+        "localhost.localdomain",
+    }:
+        raise AuditorError(
+            "Les adresses locales ne sont pas autorisées."
+        )
 
     try:
         addresses = socket.getaddrinfo(
@@ -58,6 +73,7 @@ def ensure_public_website(website: str) -> None:
             None,
             type=socket.SOCK_STREAM,
         )
+
     except socket.gaierror as error:
         raise AuditorError(
             f"Impossible de résoudre le domaine : {hostname}"
@@ -68,6 +84,7 @@ def ensure_public_website(website: str) -> None:
 
         try:
             ip = ipaddress.ip_address(ip_value)
+
         except ValueError:
             continue
 
@@ -101,16 +118,29 @@ def find_social_links(
     }
 
     for anchor in soup.find_all("a", href=True):
-        href = urljoin(base_url, anchor["href"])
+        href_value = anchor.get("href")
+
+        if not isinstance(href_value, str):
+            continue
+
+        href = urljoin(
+            base_url,
+            href_value,
+        )
 
         for name, domain in social_domains.items():
-            if domain in href.lower() and results[name] is None:
+            if (
+                domain in href.lower()
+                and results[name] is None
+            ):
                 results[name] = href
 
     return results
 
 
-def calculate_score(data: dict[str, Any]) -> int:
+def calculate_score(
+    data: dict[str, Any],
+) -> int:
     score = 0
 
     if data["https"]:
@@ -122,7 +152,9 @@ def calculate_score(data: dict[str, Any]) -> int:
     if data["page_title"]:
         score += 10
 
-        title_length = len(data["page_title"])
+        title_length = len(
+            data["page_title"]
+        )
 
         if 25 <= title_length <= 65:
             score += 5
@@ -130,13 +162,16 @@ def calculate_score(data: dict[str, Any]) -> int:
     if data["meta_description"]:
         score += 10
 
-        description_length = len(data["meta_description"])
+        description_length = len(
+            data["meta_description"]
+        )
 
         if 70 <= description_length <= 170:
             score += 5
 
     if data["h1_count"] == 1:
         score += 10
+
     elif data["h1_count"] > 0:
         score += 5
 
@@ -149,7 +184,9 @@ def calculate_score(data: dict[str, Any]) -> int:
     if data["email_visible"]:
         score += 5
 
-    if any(data["social_links"].values()):
+    if any(
+        data["social_links"].values()
+    ):
         score += 5
 
     if data["response_time_ms"] <= 1500:
@@ -158,7 +195,9 @@ def calculate_score(data: dict[str, Any]) -> int:
     return min(score, 100)
 
 
-def build_observations(data: dict[str, Any]) -> str:
+def build_observations(
+    data: dict[str, Any],
+) -> str:
     social_networks = [
         name
         for name, link in data["social_links"].items()
@@ -169,8 +208,14 @@ def build_observations(data: dict[str, Any]) -> str:
         f"URL analysée : {data['website']}",
         f"HTTPS : {'oui' if data['https'] else 'non'}",
         f"Code HTTP : {data['http_status']}",
-        f"Temps de réponse : {data['response_time_ms']} ms",
-        f"Titre : {data['page_title'] or 'absent'}",
+        (
+            "Temps de réponse : "
+            f"{data['response_time_ms']} ms"
+        ),
+        (
+            "Titre : "
+            f"{data['page_title'] or 'absent'}"
+        ),
         (
             "Meta description : "
             f"{data['meta_description'] or 'absente'}"
@@ -202,8 +247,14 @@ def build_observations(data: dict[str, Any]) -> str:
                 else "aucun détecté"
             )
         ),
-        f"Volume de texte visible : {data['visible_text_length']} caractères",
-        f"Score technique déterministe : {data['technical_score']}/100",
+        (
+            "Volume de texte visible : "
+            f"{data['visible_text_length']} caractères"
+        ),
+        (
+            "Score technique déterministe : "
+            f"{data['technical_score']}/100"
+        ),
     ]
 
     return "\n".join(lines)
@@ -215,35 +266,23 @@ def build_ai_prompt(
     city: str | None,
     observations: str,
 ) -> str:
-    return f"""
-Tu es consultant spécialisé en marketing local, création de sites web,
-référencement naturel et conversion commerciale.
+    template = load_prompt(
+        "audit.txt"
+    )
 
-Analyse l'entreprise suivante :
+    try:
+        return template.format(
+            company_name=company_name,
+            sector=sector or "non renseigné",
+            city=city or "non renseignée",
+            observations=observations,
+        )
 
-Nom : {company_name}
-Secteur : {sector or "non renseigné"}
-Ville : {city or "non renseignée"}
-
-Voici les observations techniques relevées automatiquement :
-
-{observations}
-
-Rédige un audit en français, honnête et concret.
-
-Structure obligatoire :
-
-1. Résumé général
-2. Points positifs
-3. Problèmes prioritaires
-4. Cinq améliorations concrètes
-5. Opportunité commerciale à proposer
-6. Niveau de priorité : faible, moyen ou élevé
-
-Ne prétends pas avoir observé une information absente.
-Ne donne pas de garantie de résultats.
-Reste professionnel et compréhensible par un dirigeant de petite entreprise.
-""".strip()
+    except KeyError as error:
+        raise AuditorError(
+            "Variable manquante dans le prompt Auditor : "
+            f"{error}"
+        ) from error
 
 
 def audit_website(
@@ -252,12 +291,19 @@ def audit_website(
     sector: str | None,
     city: str | None,
 ) -> dict[str, Any]:
-    normalized_url = normalize_url(website)
-    ensure_public_website(normalized_url)
+    normalized_url = normalize_url(
+        website
+    )
+
+    ensure_public_website(
+        normalized_url
+    )
 
     headers = {
         "User-Agent": USER_AGENT,
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.7",
+        "Accept-Language": (
+            "fr-FR,fr;q=0.9,en;q=0.7"
+        ),
     }
 
     started_at = time.perf_counter()
@@ -269,13 +315,18 @@ def audit_website(
             timeout=(10, 30),
             allow_redirects=True,
         )
+
     except requests.RequestException as error:
         raise AuditorError(
             f"Impossible d'ouvrir le site : {error}"
         ) from error
 
     response_time_ms = round(
-        (time.perf_counter() - started_at) * 1000
+        (
+            time.perf_counter()
+            - started_at
+        )
+        * 1000
     )
 
     content_type = response.headers.get(
@@ -288,41 +339,77 @@ def audit_website(
             "L'adresse ne renvoie pas une page HTML exploitable."
         )
 
-    soup = BeautifulSoup(response.text, "lxml")
+    soup = BeautifulSoup(
+        response.text,
+        "lxml",
+    )
 
     title = None
 
     if soup.title and soup.title.string:
-        title = soup.title.string.strip()[:500]
+        title = (
+            soup.title.string
+            .strip()
+            [:500]
+        )
 
     meta_tag = soup.find(
         "meta",
-        attrs={"name": lambda value: value and value.lower() == "description"},
+        attrs={
+            "name": lambda value: (
+                value
+                and value.lower()
+                == "description"
+            )
+        },
     )
 
     meta_description = None
 
     if meta_tag:
-        content = meta_tag.get("content")
+        content = meta_tag.get(
+            "content"
+        )
 
-        if isinstance(content, str):
-            meta_description = content.strip()
+        if isinstance(
+            content,
+            str,
+        ):
+            meta_description = (
+                content.strip()
+            )
 
-    images = soup.find_all("img")
+    images = soup.find_all(
+        "img"
+    )
+
     images_without_alt = sum(
         1
         for image in images
-        if not str(image.get("alt", "")).strip()
+        if not str(
+            image.get(
+                "alt",
+                "",
+            )
+        ).strip()
     )
 
-    forms = soup.find_all("form")
+    forms = soup.find_all(
+        "form"
+    )
 
     page_text = soup.get_text(
         separator=" ",
         strip=True,
     )
 
-    lowered_text = page_text.lower()
+    lowered_text = (
+        page_text.lower()
+    )
+
+    response_text_lower = (
+        response.text.lower()
+    )
 
     social_links = find_social_links(
         soup=soup,
@@ -331,31 +418,60 @@ def audit_website(
 
     data: dict[str, Any] = {
         "website": response.url,
-        "https": response.url.lower().startswith("https://"),
-        "http_status": response.status_code,
-        "response_time_ms": response_time_ms,
+        "https": (
+            response.url
+            .lower()
+            .startswith("https://")
+        ),
+        "http_status": (
+            response.status_code
+        ),
+        "response_time_ms": (
+            response_time_ms
+        ),
         "page_title": title,
-        "meta_description": meta_description,
-        "h1_count": len(soup.find_all("h1")),
-        "h2_count": len(soup.find_all("h2")),
-        "image_count": len(images),
-        "images_without_alt": images_without_alt,
-        "contact_form": len(forms) > 0,
+        "meta_description": (
+            meta_description
+        ),
+        "h1_count": len(
+            soup.find_all("h1")
+        ),
+        "h2_count": len(
+            soup.find_all("h2")
+        ),
+        "image_count": len(
+            images
+        ),
+        "images_without_alt": (
+            images_without_alt
+        ),
+        "contact_form": (
+            len(forms) > 0
+        ),
         "phone_visible": (
-            "tel:" in response.text.lower()
+            "tel:" in response_text_lower
             or "téléphone" in lowered_text
             or "telephone" in lowered_text
         ),
         "email_visible": (
-            "mailto:" in response.text.lower()
+            "mailto:" in response_text_lower
             or "@" in page_text
         ),
-        "social_links": social_links,
-        "visible_text_length": len(page_text),
+        "social_links": (
+            social_links
+        ),
+        "visible_text_length": (
+            len(page_text)
+        ),
     }
 
-    data["technical_score"] = calculate_score(data)
-    observations = build_observations(data)
+    data["technical_score"] = (
+        calculate_score(data)
+    )
+
+    observations = (
+        build_observations(data)
+    )
 
     prompt = build_ai_prompt(
         company_name=company_name,
@@ -364,15 +480,25 @@ def audit_website(
         observations=observations,
     )
 
-    ai_analysis = ask_ollama(prompt)
+    ai_analysis = ask_ollama(
+        prompt
+    )
 
     return {
         "website": data["website"],
         "http_status": data["http_status"],
-        "response_time_ms": data["response_time_ms"],
-        "technical_score": data["technical_score"],
-        "page_title": data["page_title"],
-        "meta_description": data["meta_description"],
+        "response_time_ms": (
+            data["response_time_ms"]
+        ),
+        "technical_score": (
+            data["technical_score"]
+        ),
+        "page_title": (
+            data["page_title"]
+        ),
+        "meta_description": (
+            data["meta_description"]
+        ),
         "observations": observations,
         "ai_analysis": ai_analysis,
     }

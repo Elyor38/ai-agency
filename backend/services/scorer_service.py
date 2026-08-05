@@ -1,6 +1,11 @@
 from backend.models.audit import Audit
 from backend.schemas.ai_score import AIScore
 from backend.services.ollama_service import ask_ollama_structured
+from backend.utils.prompt_loader import load_prompt
+
+
+class ScorerError(RuntimeError):
+    """Erreur pendant la construction du prompt du Scorer."""
 
 
 def build_scoring_prompt(
@@ -9,40 +14,22 @@ def build_scoring_prompt(
     city: str | None,
     audit: Audit,
 ) -> str:
-    return f"""
-Tu es un consultant commercial français spécialisé en :
-- création de sites web ;
-- SEO local ;
-- conversion ;
-- visibilité numérique ;
-- marketing pour petites entreprises.
+    template = load_prompt("score.txt")
 
-Évalue cette entreprise uniquement à partir des données disponibles.
+    try:
+        return template.format(
+            company_name=company_name,
+            sector=sector or "non renseigné",
+            city=city or "non renseignée",
+            technical_score=audit.technical_score,
+            observations=audit.observations,
+            analysis=audit.ai_analysis,
+        )
 
-Entreprise : {company_name}
-Secteur : {sector or "non renseigné"}
-Ville : {city or "non renseignée"}
-
-Score technique calculé :
-{audit.technical_score}/100
-
-Observations techniques :
-{audit.observations}
-
-Analyse précédente :
-{audit.ai_analysis}
-
-Règles obligatoires :
-
-- réponds uniquement en français ;
-- n'invente aucune information absente ;
-- global_score doit être compris entre 0 et 100 ;
-- priority doit être exactement low, medium ou high ;
-- high signifie qu'une prestation semble clairement pertinente ;
-- recommended_offer doit être une prestation claire et vendable ;
-- les forces, faiblesses et opportunités doivent être concrètes ;
-- réponds uniquement selon le schéma JSON demandé.
-""".strip()
+    except KeyError as error:
+        raise ScorerError(
+            f"Variable manquante dans le prompt Scorer : {error}"
+        ) from error
 
 
 def score_audit(
