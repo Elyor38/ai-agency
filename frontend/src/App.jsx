@@ -2,117 +2,191 @@ import { useEffect, useState } from "react";
 import "./App.css";
 
 import { getCompanies } from "./api/companyApi";
+import { getDashboardStats } from "./api/dashboardApi";
+import { runCompanyWorkflow } from "./api/workflowApi";
+
 
 function App() {
+  const [companies, setCompanies] = useState([]);
 
-    const [companies, setCompanies] = useState([]);
+  const [stats, setStats] = useState({
+    companies: 0,
+    audits: 0,
+    scores: 0,
+    writers: 0,
+  });
 
-    useEffect(() => {
+  const [loading, setLoading] = useState(true);
+  const [runningCompanyId, setRunningCompanyId] = useState(null);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-        async function loadCompanies() {
 
-            try {
-                const data = await getCompanies();
-                setCompanies(data);
+  async function refreshDashboard() {
+    const [companiesData, statsData] = await Promise.all([
+      getCompanies(),
+      getDashboardStats(),
+    ]);
 
-            } catch (error) {
+    setCompanies(companiesData);
+    setStats(statsData);
+  }
 
-                console.error(error);
 
-            }
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        setLoading(true);
+        setError("");
 
-        }
+        await refreshDashboard();
+      } catch (requestError) {
+        console.error(requestError);
 
-        loadCompanies();
+        setError(
+          "Impossible de charger les données du dashboard."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
 
-    }, []);
+    loadDashboard();
+  }, []);
 
-    return (
 
-        <div className="app">
+  async function handleRunWorkflow(company) {
+    try {
+      setRunningCompanyId(company.id);
+      setError("");
+      setSuccessMessage("");
 
-            <header className="header">
+      const result = await runCompanyWorkflow(company.id);
 
-                <h1>🚀 AI Agency</h1>
+      setSuccessMessage(
+        `Workflow terminé pour ${result.company_name}.`
+      );
 
-                <p>Assistant commercial intelligent</p>
+      await refreshDashboard();
+    } catch (requestError) {
+      console.error(requestError);
 
-            </header>
+      setError(requestError.message);
+    } finally {
+      setRunningCompanyId(null);
+    }
+  }
 
-            <div className="cards">
 
-                <div className="card">
-                    <h2>🏢 Entreprises</h2>
-                    <p>{companies.length}</p>
-                </div>
+  return (
+    <div className="app">
+      <header className="header">
+        <h1>🚀 AI Agency</h1>
+        <p>Assistant commercial intelligent</p>
+      </header>
 
-                <div className="card">
-                    <h2>📊 Audits</h2>
-                    <p>--</p>
-                </div>
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
 
-                <div className="card">
-                    <h2>⭐ Scores</h2>
-                    <p>--</p>
-                </div>
+      {successMessage && (
+        <div className="success-message">
+          {successMessage}
+        </div>
+      )}
 
-                <div className="card">
-                    <h2>✉️ Emails</h2>
-                    <p>--</p>
-                </div>
-
-            </div>
-
-            <h2 style={{ marginTop: 60 }}>
-
-                Entreprises
-
-            </h2>
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>Nom</th>
-
-                        <th>Ville</th>
-
-                        <th>Secteur</th>
-
-                        <th>Site</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    {companies.map(company => (
-
-                        <tr key={company.id}>
-
-                            <td>{company.name}</td>
-
-                            <td>{company.city}</td>
-
-                            <td>{company.sector}</td>
-
-                            <td>{company.website}</td>
-
-                        </tr>
-
-                    ))}
-
-                </tbody>
-
-            </table>
-
+      <div className="cards">
+        <div className="card">
+          <h2>🏢 Entreprises</h2>
+          <p>{loading ? "..." : stats.companies}</p>
         </div>
 
-    );
+        <div className="card">
+          <h2>📊 Audits</h2>
+          <p>{loading ? "..." : stats.audits}</p>
+        </div>
 
+        <div className="card">
+          <h2>⭐ Scores</h2>
+          <p>{loading ? "..." : stats.scores}</p>
+        </div>
+
+        <div className="card">
+          <h2>✉️ Emails</h2>
+          <p>{loading ? "..." : stats.writers}</p>
+        </div>
+      </div>
+
+      <h2 className="section-title">
+        Entreprises
+      </h2>
+
+      {loading ? (
+        <p>Chargement...</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Ville</th>
+              <th>Secteur</th>
+              <th>Site</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {companies.map((company) => {
+              const isRunning =
+                runningCompanyId === company.id;
+
+              return (
+                <tr key={company.id}>
+                  <td>{company.name}</td>
+                  <td>{company.city || "—"}</td>
+                  <td>{company.sector || "—"}</td>
+
+                  <td>
+                    {company.website ? (
+                      <a
+                        href={company.website}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Voir le site
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      className="workflow-button"
+                      disabled={
+                        isRunning || !company.website
+                      }
+                      onClick={() =>
+                        handleRunWorkflow(company)
+                      }
+                    >
+                      {isRunning
+                        ? "Workflow en cours..."
+                        : "Lancer le workflow"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }
+
 
 export default App;

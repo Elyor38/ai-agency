@@ -6,6 +6,7 @@ from sqlalchemy import text
 
 from backend.api.ai_routes import router as ai_router
 from backend.api.audit_routes import router as audit_router
+from backend.api.dashboard_routes import router as dashboard_router
 from backend.api.hunter_routes import router as hunter_router
 from backend.api.routes import router as companies_router
 from backend.api.score_routes import router as score_router
@@ -37,12 +38,11 @@ app = FastAPI(
         "Assistant commercial local utilisant PostgreSQL, "
         "Ollama et OpenStreetMap."
     ),
-    version="0.9",
+    version="0.10",
     lifespan=lifespan,
 )
 
 
-# Autorise le frontend React à communiquer avec FastAPI.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -62,6 +62,7 @@ app.include_router(audit_router)
 app.include_router(score_router)
 app.include_router(writer_router)
 app.include_router(workflow_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/")
