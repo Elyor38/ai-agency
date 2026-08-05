@@ -2,6 +2,7 @@ from typing import Any
 
 from agents.auditor.agent import AuditorAgent
 from agents.scorer.agent import ScorerAgent
+from agents.writer.agent import WriterAgent
 
 
 class AgentRegistry:
@@ -9,6 +10,7 @@ class AgentRegistry:
         self._agents: dict[str, Any] = {
             "auditor": AuditorAgent(),
             "scorer": ScorerAgent(),
+            "writer": WriterAgent(),
         }
 
     def get(self, name: str) -> Any:
@@ -27,9 +29,7 @@ class AgentRegistry:
         return agent
 
     def list_names(self) -> list[str]:
-        return sorted(
-            self._agents.keys()
-        )
+        return sorted(self._agents.keys())
 
 
 registry = AgentRegistry()
