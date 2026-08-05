@@ -1,0 +1,29 @@
+# Environnement Python
+.venv/
+venv/
+
+# Secrets
+.env
+
+# Cache Python
+__pycache__/
+*.py[cod]
+
+# VS Code
+.vscode/
+
+# Logs et fichiers générés
+logs/*
+reports/*
+storage/*
+
+# Alembic
+*.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Système
+.DS_Store
+Thumbs.db
