@@ -19,6 +19,90 @@ def _format_items(
     )
 
 
+def _get_business_goal(
+    sector: str | None,
+) -> str:
+    normalized_sector = (
+        sector or ""
+    ).strip().lower()
+
+    sector_goals = {
+        "restaurant": (
+            "Aider davantage de clients locaux à trouver l'établissement, "
+            "consulter les informations utiles et réserver plus facilement."
+        ),
+        "bar": (
+            "Donner envie de découvrir l'établissement et faciliter "
+            "l'accès aux horaires, événements et moyens de contact."
+        ),
+        "garage": (
+            "Augmenter les demandes de devis et simplifier "
+            "la prise de rendez-vous."
+        ),
+        "automobile": (
+            "Augmenter les demandes de devis et simplifier "
+            "la prise de rendez-vous."
+        ),
+        "coiffeur": (
+            "Faciliter la prise de rendez-vous, présenter les prestations "
+            "et rassurer les nouveaux clients."
+        ),
+        "coiffure": (
+            "Faciliter la prise de rendez-vous, présenter les prestations "
+            "et rassurer les nouveaux clients."
+        ),
+        "dentiste": (
+            "Améliorer la visibilité du cabinet et simplifier "
+            "la prise de rendez-vous pour les patients."
+        ),
+        "médecin": (
+            "Faciliter l'accès aux informations du cabinet "
+            "et la prise de rendez-vous."
+        ),
+        "avocat": (
+            "Renforcer la confiance et faciliter les demandes "
+            "de consultation."
+        ),
+        "hôtel": (
+            "Augmenter les réservations directes et mieux présenter "
+            "les chambres et services."
+        ),
+        "hotel": (
+            "Augmenter les réservations directes et mieux présenter "
+            "les chambres et services."
+        ),
+        "artisan": (
+            "Augmenter les demandes de devis et mettre en valeur "
+            "le savoir-faire de l'entreprise."
+        ),
+        "plombier": (
+            "Faciliter les demandes d'intervention et de devis "
+            "dans la zone locale."
+        ),
+        "électricien": (
+            "Faciliter les demandes d'intervention et de devis "
+            "dans la zone locale."
+        ),
+        "immobilier": (
+            "Générer davantage de demandes de contact et mieux présenter "
+            "les biens et services."
+        ),
+        "commerce": (
+            "Attirer davantage de clients locaux et faciliter "
+            "la découverte des produits et services."
+        ),
+    }
+
+    for keyword, goal in sector_goals.items():
+        if keyword in normalized_sector:
+            return goal
+
+    return (
+        "Renforcer la visibilité de l'entreprise, rassurer les visiteurs "
+        "et faciliter la prise de contact."
+    )
+
+
 def build_writer_prompt(
     company: Company,
     audit: Audit,
@@ -26,6 +110,10 @@ def build_writer_prompt(
 ) -> str:
     template = load_prompt(
         "writer_email.txt"
+    )
+
+    business_goal = _get_business_goal(
+        company.sector
     )
 
     try:
@@ -51,11 +139,13 @@ def build_writer_prompt(
             recommended_offer=score.recommended_offer,
             summary=score.summary,
             observations=audit.observations,
+            business_goal=business_goal,
         )
 
     except KeyError as error:
         raise RuntimeError(
-            f"Variable manquante dans le prompt Writer : {error}"
+            "Variable manquante dans le prompt Writer : "
+            f"{error}"
         ) from error
 
 
