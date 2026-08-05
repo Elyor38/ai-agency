@@ -1,0 +1,44 @@
+Tu dois corriger un brouillon d'email commercial.
+
+Le destinataire est un dirigeant qui ne possède aucune connaissance
+en informatique.
+
+Entreprise :
+Nom : {company_name}
+Secteur : {sector}
+
+Brouillon actuel
+
+Objet :
+{email_subject}
+
+Corps :
+{email_body}
+
+Proposition commerciale :
+{commercial_offer}
+
+Appel à l'action :
+{call_to_action}
+
+Problèmes détectés :
+{quality_issues}
+
+Consignes obligatoires :
+
+- Réponds uniquement en français.
+- Supprime tout jargon informatique.
+- N'utilise pas les expressions suivantes :
+  SEO, méta description, balise H1, balise H2, attribut ALT,
+  HTML, CSS, robots.txt, sitemap ou temps de réponse serveur.
+- Traduis chaque problème en bénéfice simple pour l'entreprise.
+- Parle de visibilité, de confiance, de clients, de réservation,
+  de devis ou de prise de contact selon le secteur.
+- Commence par un point positif réel.
+- Présente au maximum trois opportunités.
+- Utilise un ton professionnel, humain et positif.
+- Ne critique pas brutalement le site.
+- N'invente aucune information.
+- Ne promets aucun résultat garanti.
+- Termine par une proposition d'échange de 15 minutes, sans engagement.
+- Réponds uniquement selon le schéma JSON demandé.

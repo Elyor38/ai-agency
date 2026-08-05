@@ -10,6 +10,9 @@ from backend.models.company import Company
 from backend.models.score import Score
 from backend.models.writer import Writer
 from backend.schemas.writer import WriterResponse
+from backend.services.email_quality_service import (
+    EmailQualityError,
+)
 from backend.services.ollama_service import OllamaError
 
 
@@ -27,7 +30,10 @@ def create_writer_draft(
     score_id: int,
     db: Session = Depends(get_db),
 ):
-    score = db.get(Score, score_id)
+    score = db.get(
+        Score,
+        score_id,
+    )
 
     if score is None:
         raise HTTPException(
@@ -35,7 +41,10 @@ def create_writer_draft(
             detail="Score introuvable.",
         )
 
-    audit = db.get(Audit, score.audit_id)
+    audit = db.get(
+        Audit,
+        score.audit_id,
+    )
 
     if audit is None:
         raise HTTPException(
@@ -43,7 +52,10 @@ def create_writer_draft(
             detail="Audit introuvable.",
         )
 
-    company = db.get(Company, score.company_id)
+    company = db.get(
+        Company,
+        score.company_id,
+    )
 
     if company is None:
         raise HTTPException(
@@ -51,7 +63,9 @@ def create_writer_draft(
             detail="Entreprise introuvable.",
         )
 
-    writer_agent = registry.get("writer")
+    writer_agent = registry.get(
+        "writer"
+    )
 
     try:
         result = writer_agent.run(
@@ -60,7 +74,10 @@ def create_writer_draft(
             score=score,
         )
 
-    except OllamaError as error:
+    except (
+        OllamaError,
+        EmailQualityError,
+    ) as error:
         raise HTTPException(
             status_code=503,
             detail=str(error),
@@ -100,7 +117,10 @@ def list_company_writers(
     company_id: int,
     db: Session = Depends(get_db),
 ):
-    company = db.get(Company, company_id)
+    company = db.get(
+        Company,
+        company_id,
+    )
 
     if company is None:
         raise HTTPException(
@@ -110,8 +130,14 @@ def list_company_writers(
 
     statement = (
         select(Writer)
-        .where(Writer.company_id == company_id)
-        .order_by(Writer.id.desc())
+        .where(
+            Writer.company_id == company_id
+        )
+        .order_by(
+            Writer.id.desc()
+        )
     )
 
-    return list(db.scalars(statement).all())
+    return list(
+        db.scalars(statement).all()
+    )
