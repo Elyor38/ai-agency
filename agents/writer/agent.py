@@ -1,20 +1,22 @@
 from backend.models.audit import Audit
 from backend.models.company import Company
 from backend.models.score import Score
+from backend.schemas.ai_opportunity import AIOpportunityResult
 from backend.schemas.ai_writer import AIWriterResult
 from backend.services.writer_service import generate_writer_result
 
 
 class WriterAgent:
     """
-    Agent responsable de la création d'un brouillon
-    d'email commercial personnalisé.
+    Agent chargé de rédiger une proposition commerciale
+    adaptée au service choisi par l'OpportunityAgent.
     """
 
     name = "writer"
+
     description = (
-        "Génère un brouillon d'email commercial, "
-        "une offre et un appel à l'action."
+        "Génère un email commercial spécialisé selon "
+        "l'opportunité recommandée."
     )
 
     def run(
@@ -22,9 +24,11 @@ class WriterAgent:
         company: Company,
         audit: Audit,
         score: Score,
+        opportunity: AIOpportunityResult | None = None,
     ) -> AIWriterResult:
         return generate_writer_result(
             company=company,
             audit=audit,
             score=score,
+            opportunity=opportunity,
         )

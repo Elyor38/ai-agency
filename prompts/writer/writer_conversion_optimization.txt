@@ -1,0 +1,15 @@
+Service recommandé : optimisation des conversions.
+
+L'objectif est de faciliter les réservations, les demandes de devis, les appels ou les prises de contact.
+
+Explique que le site possède déjà des qualités, mais que certains visiteurs pourraient avoir du mal à passer à l'action.
+
+Propose uniquement des améliorations simples et pertinentes, par exemple :
+
+- un formulaire de contact ;
+- un système de réservation ;
+- un bouton d'appel visible ;
+- une demande de devis ;
+- un parcours plus clair vers l'action principale.
+
+L'email doit être centré sur l'augmentation des prises de contact, des réservations ou des demandes commerciales.

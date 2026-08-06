@@ -3,7 +3,9 @@ import "./App.css";
 
 import { getCompanies } from "./api/companyApi";
 import { getDashboardStats } from "./api/dashboardApi";
+import { getCompanyDetails } from "./api/companyDetailsApi";
 import { runCompanyWorkflow } from "./api/workflowApi";
+import CompanyDetails from "./components/CompanyDetails";
 
 
 function App() {
@@ -18,11 +20,12 @@ function App() {
 
   const [loading, setLoading] = useState(true);
   const [runningCompanyId, setRunningCompanyId] = useState(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(null);
+  const [companyDetails, setCompanyDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
-  const [workflowResult, setWorkflowResult] = useState(null);
 
 
   async function refreshDashboard() {
@@ -58,22 +61,48 @@ function App() {
   }, []);
 
 
+  async function handleSelectCompany(companyId) {
+    try {
+      setSelectedCompanyId(companyId);
+      setDetailsLoading(true);
+      setError("");
+      setSuccessMessage("");
+
+      const details = await getCompanyDetails(companyId);
+
+      setCompanyDetails(details);
+    } catch (requestError) {
+      console.error(requestError);
+
+      setCompanyDetails(null);
+      setError(requestError.message);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }
+
+
   async function handleRunWorkflow(company) {
     try {
       setRunningCompanyId(company.id);
       setError("");
       setSuccessMessage("");
-      setWorkflowResult(null);
 
       const result = await runCompanyWorkflow(company.id);
-
-      setWorkflowResult(result);
 
       setSuccessMessage(
         `Workflow terminé pour ${result.company_name}.`
       );
 
       await refreshDashboard();
+
+      if (selectedCompanyId === company.id) {
+        const refreshedDetails = await getCompanyDetails(
+          company.id
+        );
+
+        setCompanyDetails(refreshedDetails);
+      }
     } catch (requestError) {
       console.error(requestError);
 
@@ -107,301 +136,169 @@ function App() {
       <div className="cards">
         <div className="card">
           <h2>🏢 Entreprises</h2>
-
-          <p>
-            {loading ? "..." : stats.companies}
-          </p>
+          <p>{loading ? "..." : stats.companies}</p>
         </div>
 
         <div className="card">
           <h2>📊 Audits</h2>
-
-          <p>
-            {loading ? "..." : stats.audits}
-          </p>
+          <p>{loading ? "..." : stats.audits}</p>
         </div>
 
         <div className="card">
           <h2>⭐ Scores</h2>
-
-          <p>
-            {loading ? "..." : stats.scores}
-          </p>
+          <p>{loading ? "..." : stats.scores}</p>
         </div>
 
         <div className="card">
           <h2>✉️ Emails</h2>
-
-          <p>
-            {loading ? "..." : stats.writers}
-          </p>
+          <p>{loading ? "..." : stats.writers}</p>
         </div>
       </div>
 
-      <h2 className="section-title">
-        Entreprises
-      </h2>
+      <div className="dashboard-layout">
+        <section className="companies-panel">
+          <h2 className="section-title">
+            Entreprises
+          </h2>
 
-      {loading ? (
-        <p>Chargement...</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Ville</th>
-              <th>Secteur</th>
-              <th>Site</th>
-              <th>Action</th>
-            </tr>
-          </thead>
+          {loading ? (
+            <p>Chargement...</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Ville</th>
+                  <th>Secteur</th>
+                  <th>Site</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
 
-          <tbody>
-            {companies.map((company) => {
-              const isRunning =
-                runningCompanyId === company.id;
+              <tbody>
+                {companies.map((company) => {
+                  const isRunning =
+                    runningCompanyId === company.id;
 
-              return (
-                <tr key={company.id}>
-                  <td>{company.name}</td>
+                  const isSelected =
+                    selectedCompanyId === company.id;
 
-                  <td>
-                    {company.city || "—"}
-                  </td>
-
-                  <td>
-                    {company.sector || "—"}
-                  </td>
-
-                  <td>
-                    {company.website ? (
-                      <a
-                        href={company.website}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Voir le site
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-
-                  <td>
-                    <button
-                      type="button"
-                      className="workflow-button"
-                      disabled={
-                        isRunning || !company.website
-                      }
-                      onClick={() =>
-                        handleRunWorkflow(company)
+                  return (
+                    <tr
+                      key={company.id}
+                      className={
+                        isSelected
+                          ? "selected-row"
+                          : ""
                       }
                     >
-                      {isRunning
-                        ? "Workflow en cours..."
-                        : "Lancer le workflow"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+                      <td>
+                        <button
+                          type="button"
+                          className="company-name-button"
+                          onClick={() =>
+                            handleSelectCompany(
+                              company.id
+                            )
+                          }
+                        >
+                          {company.name}
+                        </button>
+                      </td>
 
-      {workflowResult && (
-        <section className="workflow-result">
-          <div className="workflow-result-header">
-            <div>
-              <p className="eyebrow">
-                Dernier workflow
-              </p>
+                      <td>
+                        {company.city || "—"}
+                      </td>
 
-              <h2>
-                {workflowResult.company_name}
-              </h2>
-            </div>
+                      <td>
+                        {company.sector || "—"}
+                      </td>
 
-            <button
-              type="button"
-              className="close-button"
-              onClick={() =>
-                setWorkflowResult(null)
-              }
-            >
-              Fermer
-            </button>
-          </div>
+                      <td>
+                        {company.website ? (
+                          <a
+                            href={company.website}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Voir le site
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
 
-          <div className="result-grid">
-            <article className="result-card">
-              <h3>Audit</h3>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            className="details-button"
+                            onClick={() =>
+                              handleSelectCompany(
+                                company.id
+                              )
+                            }
+                          >
+                            Voir la fiche
+                          </button>
 
-              <p>
-                Score technique :
-                <strong>
-                  {" "}
-                  {
-                    workflowResult.audit
-                      .technical_score
-                  }
-                  /100
-                </strong>
-              </p>
-
-              <p>
-                Code HTTP :
-                <strong>
-                  {" "}
-                  {
-                    workflowResult.audit
-                      .http_status ?? "inconnu"
-                  }
-                </strong>
-              </p>
-
-              <p>
-                Temps de réponse :
-                <strong>
-                  {" "}
-                  {
-                    workflowResult.audit
-                      .response_time_ms ?? "—"
-                  }
-                  {" ms"}
-                </strong>
-              </p>
-
-              <div className="result-text">
-                {
-                  workflowResult.audit
-                    .ai_analysis
-                }
-              </div>
-            </article>
-
-            <article className="result-card">
-              <h3>Score IA</h3>
-
-              <div className="score-value">
-                {
-                  workflowResult.score
-                    .global_score
-                }
-                /100
-              </div>
-
-              <p>
-                Priorité :
-                <strong>
-                  {" "}
-                  {
-                    workflowResult.score
-                      .priority
-                  }
-                </strong>
-              </p>
-
-              <h4>Forces</h4>
-
-              <ul>
-                {
-                  workflowResult.score
-                    .strengths
-                    .map((item, index) => (
-                      <li key={`${item}-${index}`}>
-                        {item}
-                      </li>
-                    ))
-                }
-              </ul>
-
-              <h4>Faiblesses</h4>
-
-              <ul>
-                {
-                  workflowResult.score
-                    .weaknesses
-                    .map((item, index) => (
-                      <li key={`${item}-${index}`}>
-                        {item}
-                      </li>
-                    ))
-                }
-              </ul>
-
-              <h4>Opportunités</h4>
-
-              <ul>
-                {
-                  workflowResult.score
-                    .opportunities
-                    .map((item, index) => (
-                      <li key={`${item}-${index}`}>
-                        {item}
-                      </li>
-                    ))
-                }
-              </ul>
-
-              <h4>Offre recommandée</h4>
-
-              <p>
-                {
-                  workflowResult.score
-                    .recommended_offer
-                }
-              </p>
-
-              <h4>Résumé</h4>
-
-              <p>
-                {
-                  workflowResult.score
-                    .summary
-                }
-              </p>
-            </article>
-
-            <article className="result-card">
-              <h3>Email commercial</h3>
-
-              <p className="email-subject">
-                {
-                  workflowResult.writer
-                    .email_subject
-                }
-              </p>
-
-              <pre className="email-body">
-                {
-                  workflowResult.writer
-                    .email_body
-                }
-              </pre>
-
-              <h4>Proposition commerciale</h4>
-
-              <p>
-                {
-                  workflowResult.writer
-                    .commercial_offer
-                }
-              </p>
-
-              <h4>Appel à l'action</h4>
-
-              <p>
-                {
-                  workflowResult.writer
-                    .call_to_action
-                }
-              </p>
-            </article>
-          </div>
+                          <button
+                            type="button"
+                            className="workflow-button"
+                            disabled={
+                              isRunning
+                              || !company.website
+                            }
+                            onClick={() =>
+                              handleRunWorkflow(company)
+                            }
+                          >
+                            {isRunning
+                              ? "Workflow en cours..."
+                              : "Lancer le workflow"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </section>
-      )}
+
+        <aside className="details-panel">
+          {detailsLoading ? (
+            <p>Chargement de la fiche...</p>
+          ) : companyDetails ? (
+            <>
+              <button
+                type="button"
+                className="close-details-button"
+                onClick={() => {
+                  setSelectedCompanyId(null);
+                  setCompanyDetails(null);
+                }}
+              >
+                Fermer la fiche
+              </button>
+
+              <CompanyDetails
+                details={companyDetails}
+              />
+            </>
+          ) : (
+            <div className="empty-details">
+              <h2>Fiche entreprise</h2>
+
+              <p>
+                Clique sur le nom d'une entreprise
+                ou sur « Voir la fiche ».
+              </p>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

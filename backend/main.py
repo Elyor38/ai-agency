@@ -6,13 +6,21 @@ from sqlalchemy import text
 
 from backend.api.ai_routes import router as ai_router
 from backend.api.audit_routes import router as audit_router
+from backend.api.company_details_routes import (
+    router as company_details_router,
+)
 from backend.api.dashboard_routes import router as dashboard_router
 from backend.api.hunter_routes import router as hunter_router
 from backend.api.routes import router as companies_router
 from backend.api.score_routes import router as score_router
+from backend.api.website_offer_routes import (
+    router as website_offer_router,
+)
 from backend.api.workflow_routes import router as workflow_router
 from backend.api.writer_routes import router as writer_router
+
 from backend.database.connection import engine
+
 from backend.models.audit import Audit
 from backend.models.company import Base
 from backend.models.score import Score
@@ -38,7 +46,7 @@ app = FastAPI(
         "Assistant commercial local utilisant PostgreSQL, "
         "Ollama et OpenStreetMap."
     ),
-    version="0.10",
+    version="0.12",
     lifespan=lifespan,
 )
 
@@ -56,12 +64,14 @@ app.add_middleware(
 
 
 app.include_router(companies_router)
+app.include_router(company_details_router)
 app.include_router(ai_router)
 app.include_router(hunter_router)
 app.include_router(audit_router)
 app.include_router(score_router)
 app.include_router(writer_router)
 app.include_router(workflow_router)
+app.include_router(website_offer_router)
 app.include_router(dashboard_router)
 
 
