@@ -2,7 +2,7 @@ from backend.main import app
 
 
 def test_application_version() -> None:
-    assert app.version == "0.12"
+    assert app.version == "0.13"
 
 
 def test_required_routes_exist() -> None:
@@ -18,6 +18,7 @@ def test_required_routes_exist() -> None:
         "/workflow/companies/{company_id}",
         "/website-offers/companies/{company_id}",
         "/dashboard/stats",
+        "/reports/companies/{company_id}/latest.pdf",
     }
 
     missing_paths = required_paths.difference(paths)
